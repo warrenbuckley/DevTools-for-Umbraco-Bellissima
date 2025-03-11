@@ -8,8 +8,6 @@ browser.runtime.onConnect.addListener((devToolsConnection) => {
     
     const devToolsListener = (message:any, port:browser.Runtime.Port) => {
 
-        // console.log('background got message', message);
-
         switch (message.name) {
             case "init":
                 id = message.tabId;
@@ -20,24 +18,6 @@ browser.runtime.onConnect.addListener((devToolsConnection) => {
                     name: 'init',
                     message: "This message has come from init in the background script"
                 }); 
-                break;
-
-            case "injectContentScript":
-                // NOTE: Not using this approach as using the manifest JSON for content script
-                // Kept this code around for now as point of reference
-                // If ever use this approach again will need to use the 'scripting' permission in the manifest
-
-                // Devtools WebComponent will send a message with name 'injectContentScript'
-                // That contains the path of the content script to inject & run
-                // browser.scripting.executeScript({
-                //     target: { tabId: message.tabId },
-                //     files: [message.scriptToInject]
-                // }).then(() => {
-                //     // console.log('injected');
-                // }).catch((err) => {
-                //     // console.error('inject', err);
-                // });
-                
                 break;
 
             case "contextData":
@@ -67,19 +47,12 @@ browser.runtime.onConnect.addListener((devToolsConnection) => {
         }
     };
 
-
     devToolsConnection.onMessage.addListener(devToolsListener);
 
+    // When the connection to this background script is disconnected
+    // Ensure we remove our event listener waiting for messages
     devToolsConnection.onDisconnect.addListener(() => {
         devToolsConnection.onMessage.removeListener(devToolsListener);
-
-        // var tabs = Object.keys(connections);
-        // for (var i=0, len=tabs.length; i < len; i++) {
-        //   if (connections[tabs[i]] == devToolsConnection) {
-        //     delete connections[tabs[i]]
-        //     break;
-        //   }
-        // }
     });
 
 });
