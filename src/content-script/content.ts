@@ -30,6 +30,4 @@ if (umbAppRoots.length) {
     });
 
   });
-} else {
-  console.warn("No <umb-app> found in the DOM");
 }
