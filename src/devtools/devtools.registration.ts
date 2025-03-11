@@ -21,8 +21,6 @@ const checkDOMReadyAndFindUmbApp = `
 // We check the length rather than getting the DOM element itself as it can NOT be serialized
 // as JSON over the DevTools protocol. So hence a simple check for the length of the array
 browser.devtools.inspectedWindow.eval(checkDOMReadyAndFindUmbApp).then((result) => {
-    
-    console.log('result of get elment by tag name.length', result);
 
     // We only expect the result of the JS call above to be 0 or 1
     // The result is an array of values that contains the result of the JS call and the other is any errors
@@ -38,5 +36,5 @@ browser.devtools.inspectedWindow.eval(checkDOMReadyAndFindUmbApp).then((result) 
     }
 
 }).catch((err) => {
-    console.error('err', err);
+    console.error("Error: Trying to see if the inspected window contains <umb-app>", err);
 });
