@@ -67,28 +67,14 @@ export class UmbDevToolsElement extends LitElement {
             tabId: browser.devtools.inspectedWindow.tabId
         });
 
-        // *** NOTE: This was moved as registration into manifest.json ***
-        // If ever use this approach again will need to use the 'scripting' permission in the manifest
-
-        // Let the background page know we want to inject a script
-        // this._backgroundPageConnection.postMessage({
-        //     name: "injectContentScript",
-        //     tabId: browser.devtools.inspectedWindow.tabId,
-        //     scriptToInject: "content-script/content.js",
-        // });
-
 
         // Listen to ANY messages recieved FROM the background page
         this._backgroundPageConnection.onMessage.addListener((message, _port) => {
-
-            // console.log('message FROM BG in debug component', message, message.name);
-
             switch(message.name) {
                 case "contextData":
 
                     // We HAVE data from the background page to put on the component
                     this.hasSelection = true;
-
                     this.contextData = message.data.contexts;
                     break;
             }
@@ -138,7 +124,8 @@ export class UmbDevToolsElement extends LitElement {
                     <strong>Please select a DOM element from the elements pane</strong>
                 </div>                
             `
-        }else {
+        }
+        else {
             return html `
                 <div class="sticky-bar">
                     <strong>Contexts Count: ${this.contextData.length}</strong>
