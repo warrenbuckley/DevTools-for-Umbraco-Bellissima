@@ -15,7 +15,7 @@ browser.runtime.onConnect.addListener((devToolsConnection) => {
 
                 // Send a message back to DevTools
                 connections[id].postMessage({
-                    name: 'init',
+                    name: "init",
                     message: "This message has come from init in the background script"
                 }); 
                 break;
