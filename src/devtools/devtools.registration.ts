@@ -31,10 +31,7 @@ browser.devtools.inspectedWindow.eval(checkDOMReadyAndFindUmbApp).then((result) 
         browser.devtools.panels.elements.createSidebarPane("Umbraco").then((sidebar) => {
             sidebar.setPage("devtools-panel.html");
         });
-    } else {
-        console.warn("Did not find the <umb-app> element in the page, so the Umbraco DevTools panel will not be shown.");
     }
-
 }).catch((err) => {
     console.error("Error: Trying to see if the inspected window contains <umb-app>", err);
 });
