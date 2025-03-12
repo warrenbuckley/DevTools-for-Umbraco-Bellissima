@@ -21,3 +21,19 @@ flowchart
     C --> | HTML page simply loads registration.js | D(registration.js)
     D -->|Uses browser APIs to create the DevTools pane as needed |E[Dev Tools Pane]
 ```
+
+
+## Publishing
+These are notes and URLs to help remind me where all the different places & approches to different browser extension stores.
+
+### Edge/Microsoft
+* [How To Guide](https://learn.microsoft.com/en-us/microsoft-edge/extensions-chromium/publish/publish-extension)
+* [Signin with GitHub account](https://partner.microsoft.com/dashboard/microsoftedge/public/login?ref=dd)
+
+## Chrome
+* [How To Guide](https://developer.chrome.com/docs/webstore/publish)
+* [Chrome Portal](https://chrome.google.com/webstore/devconsole)
+
+### FireFox
+* [How To Guide](https://extensionworkshop.com/documentation/publish/)
+* [Firefox Developer Addons Portal](https://addons.mozilla.org/en-GB/developers/addons)
