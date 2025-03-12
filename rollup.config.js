@@ -5,22 +5,11 @@ import commonjs from '@rollup/plugin-commonjs';
 /** @type {import('rollup').RollupOptions} */
 export default [
     {
-        input: 'src/popup/popup.element.ts',
-        output: {
-            dir: 'extension',
-            format: 'esm'
-        },
-        plugins: [
-            nodeResolve(),
-            typescript()
-        ],
-        external: [] // list of external modules to exclude from the bundle
-    },
-    {
         input: 'src/devtools/devtools.registration.ts',
         output: {
             dir: 'extension',
-            format: 'esm'
+            format: 'esm',
+            sourcemap: true
         },
         plugins: [
             nodeResolve(),
@@ -32,7 +21,8 @@ export default [
         input: 'src/devtools/devtools.element.ts',
         output: {
             dir: 'extension',
-            format: 'esm'
+            format: 'esm',
+            sourcemap: true
         },
         plugins: [
             nodeResolve(),
@@ -44,7 +34,8 @@ export default [
         input: 'src/background/background.ts',
         output: {
             dir: 'extension',
-            format: 'esm'
+            format: 'esm',
+            sourcemap: true
         },
         plugins: [
             nodeResolve(),
@@ -56,7 +47,8 @@ export default [
         input: 'src/content-script/content.ts',
         output: {
             dir: 'extension',
-            format: 'esm'
+            format: 'esm',
+            sourcemap: true
         },
         plugins: [
             nodeResolve(),
