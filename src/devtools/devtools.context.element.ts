@@ -18,32 +18,6 @@ export class UmbDevToolsContextElement extends LitElement {
         super.connectedCallback();
     }
 
-    static styles = css`
-        :host {
-            font-family: monospace;
-        }
-
-        details {
-            border: 1px solid #ccc;
-            background: white;
-            padding:5px;
-            box-shadow: 0 0 5px 0 rgba(0,0,0,0.2);
-        }
-
-        details > summary { 
-            cursor: pointer;
-        }
-
-		ul details {
-			margin-left: -10px;
-			margin-bottom: 0;
-			border: none;
-            background: inherit;
-			padding: 0;
-			box-shadow: none;
-		}
-    `;
-
     render() {
         return html `
             <details>
@@ -109,6 +83,32 @@ export class UmbDevToolsContextElement extends LitElement {
 
 		return instanceTemplates;
 	}
+
+	static styles = css`
+        :host {
+            font-family: monospace;
+        }
+
+        details {
+            border: 1px solid #ccc;
+            background: white;
+            padding:5px;
+            box-shadow: 0 0 5px 0 rgba(0,0,0,0.2);
+        }
+
+        details > summary { 
+            cursor: pointer;
+        }
+
+		ul details {
+			margin-left: -10px;
+			margin-bottom: 0;
+			border: none;
+            background: inherit;
+			padding: 0;
+			box-shadow: none;
+		}
+    `;
 }
 
 declare global {

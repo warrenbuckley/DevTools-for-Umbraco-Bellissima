@@ -16,44 +16,6 @@ export class UmbDevToolsElement extends LitElement {
 
     private _backgroundPageConnection?: browser.Runtime.Port;
 
-
-    static styles = css`
-        :host {
-            font-family: monospace;
-            font-size: 12px;
-
-            display: block;
-            height: 100%;
-        }
-
-        .no-selection {
-            text-align: center;
-            height: 100vh;
-            display: grid;
-            align-items: center;
-        }
-
-        .sticky-bar {
-            position: fixed;
-            width: calc(100% - 16px);
-            top:0;
-            background: #fff;
-            padding: 10px 8px;
-            border-bottom: 1px solid #ccc;
-            margin-bottom: 8px;
-        }
-
-        umb-devtools-context {
-            display: block;
-            margin: 0 8px 8px 8px;
-        }
-
-        umb-devtools-context:first-of-type {
-            margin-top:45px;
-        }
-    `;
-
-
     connectedCallback(): void {
         super.connectedCallback();
 
@@ -149,6 +111,41 @@ export class UmbDevToolsElement extends LitElement {
 		return contextsTemplates;
     }
 
+    static styles = css`
+        :host {
+            font-family: monospace;
+            font-size: 12px;
+
+            display: block;
+            height: 100%;
+        }
+
+        .no-selection {
+            text-align: center;
+            height: 100vh;
+            display: grid;
+            align-items: center;
+        }
+
+        .sticky-bar {
+            position: fixed;
+            width: calc(100% - 16px);
+            top:0;
+            background: #fff;
+            padding: 10px 8px;
+            border-bottom: 1px solid #ccc;
+            margin-bottom: 8px;
+        }
+
+        umb-devtools-context {
+            display: block;
+            margin: 0 8px 8px 8px;
+        }
+
+        umb-devtools-context:first-of-type {
+            margin-top:45px;
+        }
+    `;
 }
 
 declare global {
