@@ -11,9 +11,6 @@ export class UmbDevToolsElement extends LitElement {
     @state()
     contextData = Array<DebugContextData>();
 
-    @state()
-    hasSelection = false;
-
     private _backgroundPageConnection?: browser.Runtime.Port;
 
     connectedCallback(): void {
@@ -36,7 +33,6 @@ export class UmbDevToolsElement extends LitElement {
                 case "contextData":
 
                     // We HAVE data from the background page to put on the component
-                    this.hasSelection = true;
                     this.contextData = message.data.contexts;
                     break;
             }
@@ -80,7 +76,7 @@ export class UmbDevToolsElement extends LitElement {
     }
 
     render() {
-        if(!this.hasSelection) {
+        if (!this.contextData || this.contextData.length == 0) {
             return html `
                 <div class="no-selection">
                     <strong>Please select a DOM element from the elements pane</strong>
