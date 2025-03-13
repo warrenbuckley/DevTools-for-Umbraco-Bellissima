@@ -2,6 +2,7 @@ import {LitElement, TemplateResult, css, html} from 'lit';
 import {customElement, state} from 'lit/decorators.js';
 import browser from "webextension-polyfill";
 import { DebugContextData } from './DebugContextData.interface';
+import { BackgroundPageMessage } from '../background/background.messages.interface';
 import './devtools.context.element';
 
 
@@ -9,7 +10,7 @@ import './devtools.context.element';
 export class UmbDevToolsElement extends LitElement {
 
     @state()
-    contextData = Array<DebugContextData>();
+    contextData:Array<DebugContextData> | undefined={} = Array<DebugContextData>();
 
     private _backgroundPageConnection?: browser.Runtime.Port;
 
@@ -26,14 +27,16 @@ export class UmbDevToolsElement extends LitElement {
             tabId: browser.devtools.inspectedWindow.tabId
         });
 
-
         // Listen to ANY messages recieved FROM the background page
         this._backgroundPageConnection.onMessage.addListener((message, _port) => {
-            switch(message.name) {
+            const typedMessage = message as BackgroundPageMessage;
+
+
+            switch(typedMessage.name) {
                 case "contextData":
 
                     // We HAVE data from the background page to put on the component
-                    this.contextData = message.data.contexts;
+                    this.contextData = typedMessage.data?.contexts;
                     break;
             }
         });
@@ -96,7 +99,7 @@ export class UmbDevToolsElement extends LitElement {
     private _renderContextData() {
         const contextsTemplates: TemplateResult[] = [];
 
-		this.contextData.forEach((contextData) => {
+		this.contextData?.forEach((contextData) => {
 			contextsTemplates.push(
 				html`
                     <umb-devtools-context class="context" .context=${contextData}></umb-devtools-context>
