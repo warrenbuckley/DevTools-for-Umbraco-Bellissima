@@ -1,43 +1,28 @@
 import browser from "webextension-polyfill";
-import { BackgroundPageMessage } from "./background.messages.interface";
 
-let id:number | undefined;
+let id:number;
 let connections: { [id: number]: browser.Runtime.Port } = {};
+
 
 browser.runtime.onConnect.addListener((devToolsConnection) => {
     
-    const devToolsListener = (message: unknown, port:browser.Runtime.Port) => {
-        const typedMessage = message as BackgroundPageMessage;
+    const devToolsListener = (message:any, port:browser.Runtime.Port) => {
 
-        switch (typedMessage.name) {
+        switch (message.name) {
             case "init":
-                // Assign message.tabId to the id
-                id = typedMessage.tabId;
+                id = message.tabId;
+                connections[id] = devToolsConnection;
 
-                if(id !== undefined){
-                    // Store the connection against the tab id
-                    connections[id] = devToolsConnection;
-
-                    // Send a message back to DevTools
-                    const initMessage: BackgroundPageMessage = {
-                        name: "init",
-                        message: "This message has come from init in the background script"
-                    };
-    
-                    connections[id].postMessage(initMessage); 
-                }
+                // Send a message back to DevTools
+                connections[id].postMessage({
+                    name: "init",
+                    message: "This message has come from init in the background script"
+                }); 
                 break;
 
             case "contextData":
-                if(id !== undefined){
-                    // Send/relay the message back to DevTools code to deal with it
-                    const contextDataMessage: BackgroundPageMessage = {
-                        name: "contextData",
-                        data: typedMessage.data
-                    };
-                    
-                    connections[id].postMessage(contextDataMessage);
-                }
+                // Send/relay the message back to DevTools code to deal with it
+                connections[id].postMessage({ name: message.name, data: message.data });
                 break;
             
             case "detectedUmbApp":
