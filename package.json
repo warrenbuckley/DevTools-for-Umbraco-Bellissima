@@ -14,7 +14,8 @@
     "start:chromium": "npm run copy:manifest:chromium && web-ext run --source-dir extension/ --target chromium --browser-console --devtools",
     "lint": "web-ext lint --source-dir extension/",
     "package:firefox": "npm run copy:manifest:firefox && web-ext build --source-dir extension/ --verbose --overwrite-dest --filename {name}-{version}-Firefox.zip",
-    "package:chromium": "npm run copy:manifest:chromium && web-ext build --source-dir extension/ --verbose --overwrite-dest --filename {name}-{version}-Chromium.zip"
+    "package:chromium": "npm run copy:manifest:chromium && web-ext build --source-dir extension/ --verbose --overwrite-dest --filename {name}-{version}-Chromium.zip",
+    "test": "npm run build && npm run copy:manifest:chromium && xvfb-run npx playwright test"
   },
   "keywords": [
     "browser-extension",
@@ -24,6 +25,7 @@
   "author": "Warren Buckley",
   "private": true,
   "devDependencies": {
+    "@playwright/test": "^1.56.0",
     "@rollup/plugin-commonjs": "^28.0.3",
     "@rollup/plugin-node-resolve": "^16.0.0",
     "@rollup/plugin-typescript": "^12.1.2",

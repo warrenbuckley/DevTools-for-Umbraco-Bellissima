@@ -9,7 +9,7 @@ import './devtools.context.element';
 export class UmbDevToolsElement extends LitElement {
 
     @state()
-    contextData = Array<DebugContextData>();
+    contextData: DebugContextData[] = [];
 
     private _backgroundPageConnection?: browser.Runtime.Port;
 
@@ -44,7 +44,7 @@ export class UmbDevToolsElement extends LitElement {
 
     disconnectedCallback(): void {
         super.disconnectedCallback();
-1
+
         // Ensure we disconnect from the background page when the element is removed from the DOM
         this._backgroundPageConnection?.disconnect();
 
@@ -63,15 +63,8 @@ export class UmbDevToolsElement extends LitElement {
         // and then forward it back here in the devtools element
 
         browser.devtools.inspectedWindow.eval(`
-            if (!window.selectedElement) {
-                let selectedElement = $0;
-                selectedElement.dispatchEvent(new CustomEvent("umb:debug-contexts", { bubbles: true, composed: true, cancelable: false }));
-                window.selectedElement = selectedElement;
-            } else {
-                let selectedElement = $0;
-                selectedElement.dispatchEvent(new CustomEvent("umb:debug-contexts", { bubbles: true, composed: true, cancelable: false }));
-                window.selectedElement = selectedElement;
-            }
+            var selectedElement = $0;
+            selectedElement.dispatchEvent(new CustomEvent("umb:debug-contexts", { bubbles: true, composed: true, cancelable: false }));
         `);
     }
 

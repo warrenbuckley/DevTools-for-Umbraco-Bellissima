@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Umbraco Bellissima Simulator (Immediate)</title>
+</head>
+<body>
+    <!-- This page has <umb-app> in the static HTML, NOT added by JS -->
+    <!-- The content script SHOULD detect this reliably -->
+    <umb-app>
+        <div>Umbraco Backoffice (statically rendered)</div>
+    </umb-app>
+    <script>
+        window.__timings = {};
+        document.addEventListener('DOMContentLoaded', () => {
+            window.__timings.domContentLoadedAt = performance.now();
+            window.__timings.umbAppExistsAtDCL = document.getElementsByTagName('umb-app').length > 0;
+        });
+    </script>
+</body>
+</html>
