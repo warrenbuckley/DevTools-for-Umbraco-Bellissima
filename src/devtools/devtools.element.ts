@@ -29,11 +29,12 @@ export class UmbDevToolsElement extends LitElement {
 
         // Listen to ANY messages recieved FROM the background page
         this._backgroundPageConnection.onMessage.addListener((message, _port) => {
-            switch(message.name) {
+            const msg = message as { name: string; data?: { contexts: DebugContextData[] } };
+            switch(msg.name) {
                 case "contextData":
 
                     // We HAVE data from the background page to put on the component
-                    this.contextData = message.data.contexts;
+                    this.contextData = msg.data?.contexts ?? [];
                     break;
             }
         });
