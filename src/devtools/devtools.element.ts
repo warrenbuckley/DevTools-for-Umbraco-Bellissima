@@ -4,7 +4,6 @@ import browser from "webextension-polyfill";
 import { DebugContextData } from './DebugContextData.interface';
 import './devtools.context.element';
 
-
 @customElement('umb-devtools')
 export class UmbDevToolsElement extends LitElement {
 
@@ -15,6 +14,17 @@ export class UmbDevToolsElement extends LitElement {
 
     connectedCallback(): void {
         super.connectedCallback();
+
+        // Set the DevTools theme as a host attribute for CSS targeting
+        this._applyTheme(browser.devtools.panels.themeName);
+
+        // Firefox uses onThemeChanged event, Chrome uses setThemeChangeHandler
+        if (browser.devtools.panels.onThemeChanged) {
+            browser.devtools.panels.onThemeChanged.addListener(this._onThemeChanged);
+        } else {
+            // Chrome uses setThemeChangeHandler (Chrome 99+) instead of onThemeChanged
+            chrome?.devtools.panels.setThemeChangeHandler(this._onThemeChanged);
+        }
 
         // Connect to the background page with a given name to send/recieve messages on
         this._backgroundPageConnection = browser.runtime.connect({ name: "devtools" });
@@ -51,6 +61,22 @@ export class UmbDevToolsElement extends LitElement {
 
         // Remove our listener for when the selection of the element is changed
         browser.devtools.panels.elements.onSelectionChanged.removeListener(this._onSelectionChanged);
+
+        // Remove theme change listener
+        if (browser.devtools.panels.onThemeChanged) {
+            browser.devtools.panels.onThemeChanged.removeListener(this._onThemeChanged);
+        } else {
+            // Chrome: pass null to remove the handler
+            chrome?.devtools.panels.setThemeChangeHandler(null);
+        }
+    }
+
+    private _onThemeChanged = (themeName: string) => {
+        this._applyTheme(themeName);
+    }
+
+    private _applyTheme(themeName: string) {
+        document.documentElement.dataset.theme = themeName;
     }
 
     private _onSelectionChanged = () => {
@@ -108,6 +134,8 @@ export class UmbDevToolsElement extends LitElement {
 
             display: block;
             height: 100%;
+            background: var(--umb-devtools-bg);
+            color: var(--umb-devtools-color);
         }
 
         .no-selection {
@@ -121,9 +149,9 @@ export class UmbDevToolsElement extends LitElement {
             position: fixed;
             width: calc(100% - 16px);
             top:0;
-            background: #fff;
+            background: var(--umb-devtools-surface);
             padding: 10px 8px;
-            border-bottom: 1px solid #ccc;
+            border-bottom: 1px solid var(--umb-devtools-border);
             margin-bottom: 8px;
         }
 
@@ -139,6 +167,16 @@ export class UmbDevToolsElement extends LitElement {
 }
 
 declare global {
+	// Chrome-specific DevTools API not covered by webextension-polyfill.
+	// Chrome uses setThemeChangeHandler (Chrome 99+) instead of the onThemeChanged event.
+	const chrome: {
+		devtools: {
+			panels: {
+				setThemeChangeHandler(callback: ((themeName: string) => void) | null): void;
+			};
+		};
+	} | undefined;
+
 	interface HTMLElementTagNameMap {
 		'umb-devtools': UmbDevToolsElement;
 	}

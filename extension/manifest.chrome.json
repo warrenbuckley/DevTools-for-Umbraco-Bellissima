@@ -30,6 +30,12 @@
             "js": ["content.js"],
             "matches": [ "<all_urls>" ],
             "run_at": "document_end"
+        },
+        {
+            "js": ["content-page-bridge.js"],
+            "matches": [ "<all_urls>" ],
+            "run_at": "document_end",
+            "world": "MAIN"
         }
     ]
 }

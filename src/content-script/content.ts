@@ -16,15 +16,29 @@ function _onUmbAppDetected(umbAppRoot: Element) {
     name: "detectedUmbApp"
   });
 
-  // Listen for the custom event from the <umb-debug> element
-  // when it has collected all contexts up the DOM
+  // Listen for the custom event from the <umb-debug> element directly.
+  // This works in Firefox via Xray wrappers that allow accessing CustomEvent.detail
+  // across the page/content-script world boundary.
   umbAppRoot.addEventListener("umb:debug-contexts:data", (e) => {
     const customEvent = (<CustomEvent>e);
+    if (customEvent.detail) {
+      backgroundPageConnection.postMessage({
+        name: "contextData",
+        data: customEvent.detail,
+      });
+    }
+  });
 
-    // Send a message to the background page - which it can forward to the devtools panel
+  // In Chrome, content scripts run in an isolated world where CustomEvent.detail
+  // from the page world is null. The content-page-bridge.ts script runs in the
+  // MAIN world and relays the data via window.postMessage.
+  window.addEventListener("message", (e) => {
+    if (e.source !== window) return;
+    if (e.data?.type !== "umb-devtools-context-data") return;
+
     backgroundPageConnection.postMessage({
       name: "contextData",
-      data: customEvent.detail,
+      data: e.data.detail,
     });
   });
 }

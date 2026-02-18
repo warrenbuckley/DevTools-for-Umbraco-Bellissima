@@ -8,10 +8,26 @@
     <script src="devtools.element.js" type="module"></script>
     
     <style>
+        :root {
+            --umb-devtools-bg: #fff;
+            --umb-devtools-color: #18181a;
+            --umb-devtools-border: #ccc;
+            --umb-devtools-surface: #fff;
+        }
+
+        :root[data-theme="dark"] {
+            --umb-devtools-bg: #232327;
+            --umb-devtools-color: #e8e8e8;
+            --umb-devtools-border: #4a4a4f;
+            --umb-devtools-surface: #2a2a2e;
+        }
+
         html, body {
             margin: 0;
             padding: 0;
             height: 100%;
+            background: var(--umb-devtools-bg);
+            color: var(--umb-devtools-color);
         }
     </style>
 </head>

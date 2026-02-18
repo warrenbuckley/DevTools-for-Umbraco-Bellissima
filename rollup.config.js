@@ -55,5 +55,18 @@ export default [
             commonjs(),
             typescript()
         ]
+    },
+    {
+        input: 'src/content-script/content-page-bridge.ts',
+        output: {
+            dir: 'extension',
+            format: 'esm',
+            sourcemap: true
+        },
+        plugins: [
+            nodeResolve(),
+            commonjs(),
+            typescript()
+        ]
     }
 ];
