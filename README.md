@@ -13,13 +13,69 @@ Will be republished soon
 * Run `npm run start:chromium` to have Chrome or chromium based browser open with the extension loaded and monitoring any changes to the files in the `extension` folder
 
 ## How it works
+
 #### Registering DevTools Pane
 ```mermaid
 flowchart
     A(Browser Extension) --> |Loads manifest from root of folder| B
     B(manifest.json) --> |devtools_page| C(registration.html)
-    C --> | HTML page simply loads registration.js | D(registration.js)
-    D -->|Uses browser APIs to create the DevTools pane as needed |E[Dev Tools Pane]
+    C --> |HTML page simply loads registration.js| D(registration.js)
+    D --> |Polls for umb-app up to 10 times| E{umb-app found?}
+    E --> |Yes| F[Creates DevTools Sidebar Pane]
+    E --> |No, retry| D
+```
+
+#### Detecting umb-app
+```mermaid
+flowchart
+    A[Content script injected at document_end] --> B{umb-app in DOM?}
+    B --> |Yes| C[Connect to background & set up listeners]
+    B --> |No| D[Start MutationObserver]
+    D --> |umb-app added dynamically by SPA| C
+```
+
+#### Context Data Flow
+```mermaid
+sequenceDiagram
+    participant User
+    participant DevTools as DevTools Panel<br/>(devtools.element.ts)
+    participant BG as Background<br/>(background.ts)
+    participant CS as Content Script<br/>(content.ts)<br/>Isolated World
+    participant Bridge as Page Bridge<br/>(content-page-bridge.ts)<br/>MAIN World
+    participant Page as Umbraco Page<br/>(umb-app)
+
+    User->>DevTools: Selects element in Elements pane
+    DevTools->>Page: eval("$0.dispatchEvent(umb:debug-contexts)")
+    Page->>Page: umb-debug collects contexts up the DOM
+    Page->>Bridge: CustomEvent "umb:debug-contexts:data"
+    Page->>CS: CustomEvent "umb:debug-contexts:data"
+
+    Note over CS: Firefox: event.detail available<br/>via Xray wrappers
+    Note over CS: Chrome: event.detail is null<br/>(isolated world boundary)
+
+    Bridge->>CS: window.postMessage (Chrome path)
+    CS->>BG: port.postMessage("contextData")
+    BG->>DevTools: port.postMessage("contextData")
+    DevTools->>User: Renders context properties,<br/>methods, and values
+```
+
+#### Background Message Routing
+```mermaid
+flowchart LR
+    subgraph "Port: content-script"
+        CS[Content Script]
+    end
+    subgraph "Background Service Worker"
+        BG[Routes by tab ID]
+    end
+    subgraph "Port: devtools"
+        DT[DevTools Panel]
+    end
+
+    CS --> |detectedUmbApp| BG
+    CS --> |contextData| BG
+    BG --> |contextData| DT
+    BG --> |init| DT
 ```
 
 ### Light/Dark Theme Support

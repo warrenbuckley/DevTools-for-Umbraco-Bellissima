@@ -44,7 +44,8 @@ src/
 ├── background/
 │   └── background.ts              # Service worker: message relay between devtools and content script
 ├── content-script/
-│   └── content.ts                 # Content script: detects <umb-app>, listens for context events
+│   ├── content.ts                 # Content script (isolated world): detects <umb-app>, relays context data
+│   └── content-page-bridge.ts     # Page bridge (MAIN world, Chrome only): reads CustomEvent.detail
 └── devtools/
     ├── DebugContextData.interface.ts  # TypeScript interfaces for context data
     ├── devtools.registration.ts       # Registers DevTools sidebar pane when Umbraco detected
@@ -81,14 +82,20 @@ DevTools Panel (umb-devtools component)
     ↕  browser.runtime.Port ("devtools")
 Background Service Worker (background.ts)
     ↕  browser.runtime.Port ("content-script")
-Content Script (content.ts)
+Content Script (content.ts) — isolated world
+    ↕  CustomEvent (Firefox) / window.postMessage (Chrome)
+Content Page Bridge (content-page-bridge.ts) — MAIN world (Chrome only)
     ↕  CustomEvent ("umb:debug-contexts" / "umb:debug-contexts:data")
 Page DOM (<umb-app>, <umb-debug>)
 ```
 
+In Chrome, content scripts run in an **isolated world** where `CustomEvent.detail` from page-dispatched events is `null`. A bridge script running in the **MAIN world** reads the detail and relays it via `window.postMessage`. Firefox uses Xray wrappers so the content script can read `event.detail` directly; the bridge is not needed there and is not included in the Firefox manifest.
+
 **Background script** (`background.ts`): Message hub that relays data between DevTools panel and content script. Distinguishes connections by port name (`"devtools"` for the panel, `"content-script"` for content scripts) and routes messages by tab ID. Cleans up stale connections on disconnect. Updates extension icon/popup based on detection state.
 
-**Content script** (`content.ts`): Injected into every page. Detects `<umb-app>` element using an immediate check first, then falls back to a `MutationObserver` to handle SPA pages where `<umb-app>` is added dynamically after page load. Only establishes a background connection (port name `"content-script"`) when Umbraco is actually detected. Listens for `umb:debug-contexts:data` custom events and relays context data.
+**Content script** (`content.ts`): Injected into every page (isolated world). Detects `<umb-app>` element using an immediate check first, then falls back to a `MutationObserver` to handle SPA pages where `<umb-app>` is added dynamically after page load. Only establishes a background connection (port name `"content-script"`) when Umbraco is actually detected. Receives context data via direct `CustomEvent` listener (Firefox) and via `window.postMessage` from the page bridge (Chrome).
+
+**Content page bridge** (`content-page-bridge.ts`): Chrome-only script injected into the **MAIN world** (`"world": "MAIN"` in Chrome manifest). Listens for `umb:debug-contexts:data` custom events on `<umb-app>`, reads `event.detail` (which is only accessible in the MAIN world in Chrome), and relays it to the isolated-world content script via `window.postMessage`. Uses the same MutationObserver pattern to detect `<umb-app>`.
 
 **DevTools registration** (`devtools.registration.ts`): Runs in the DevTools context. Polls for `<umb-app>` using `browser.devtools.inspectedWindow.eval()` (up to 10 attempts at 500ms intervals), then creates a sidebar pane via `browser.devtools.panels.elements.createSidebarPane()`.
 
@@ -96,7 +103,7 @@ Page DOM (<umb-app>, <umb-debug>)
 
 ## Build System
 
-Rollup compiles 4 independent entry points from `src/` to `extension/`:
+Rollup compiles 5 independent entry points from `src/` to `extension/`:
 
 | Entry | Output |
 |-------|--------|
@@ -104,6 +111,7 @@ Rollup compiles 4 independent entry points from `src/` to `extension/`:
 | `src/devtools/devtools.element.ts` | `extension/devtools.element.js` |
 | `src/background/background.ts` | `extension/background.js` |
 | `src/content-script/content.ts` | `extension/content.js` |
+| `src/content-script/content-page-bridge.ts` | `extension/content-page-bridge.js` |
 
 Output format is ES modules with sourcemaps. The `extension/` directory is the final distributable -- static HTML/icons are committed, but `.js` and `.js.map` files are gitignored (build artifacts).
 
