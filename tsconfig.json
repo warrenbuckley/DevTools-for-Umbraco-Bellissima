@@ -9,5 +9,6 @@
         "moduleResolution": "node",
         "allowSyntheticDefaultImports": true,
         "useDefineForClassFields": false
-    }
+    },
+    "exclude": ["tests", "playwright.config.ts"]
 }

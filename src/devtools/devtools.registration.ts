@@ -1,37 +1,29 @@
 import browser from "webextension-polyfill";
 
-// Wait for the DOM to finish loading
-// This is to ensure that the content script can find the <umb-app> element in the DOM
-// before we check if it is there or not
+// Check if we can find the <umb-app> element in the page.
+// Since Umbraco Bellissima is a SPA, <umb-app> may not exist immediately.
+// We poll a few times to handle the case where it's added dynamically by JavaScript.
+const MAX_ATTEMPTS = 10;
+const POLL_INTERVAL_MS = 500;
 
-const checkDOMReadyAndFindUmbApp = `
-    (function() {
-        if (document.readyState === 'complete' || document.readyState === 'interactive') {
-            return document.getElementsByTagName('umb-app').length;
-        } else {
-            document.addEventListener('DOMContentLoaded', function() {
-                return document.getElementsByTagName('umb-app').length;
+function checkForUmbApp(attempt: number) {
+    browser.devtools.inspectedWindow.eval(
+        `document.getElementsByTagName('umb-app').length`
+    ).then((result) => {
+        const valueOfEval = result[0];
+
+        if (valueOfEval) {
+            // Found <umb-app>, create the sidebar pane
+            browser.devtools.panels.elements.createSidebarPane("Umbraco").then((sidebar) => {
+                sidebar.setPage("devtools-panel.html");
             });
+        } else if (attempt < MAX_ATTEMPTS) {
+            // Not found yet, try again after a short delay
+            setTimeout(() => checkForUmbApp(attempt + 1), POLL_INTERVAL_MS);
         }
-    })();
-`;
+    }).catch((err) => {
+        console.error("Error: Trying to see if the inspected window contains <umb-app>", err);
+    });
+}
 
-
-// Check if we can find the <umb-app> element in the page
-// We check the length rather than getting the DOM element itself as it can NOT be serialized
-// as JSON over the DevTools protocol. So hence a simple check for the length of the array
-browser.devtools.inspectedWindow.eval(checkDOMReadyAndFindUmbApp).then((result) => {
-
-    // We only expect the result of the JS call above to be 0 or 1
-    // The result is an array of values that contains the result of the JS call and the other is any errors
-    const valueOfEval = result[0];
-
-    // As the value is 0 or 1 lets be lazy and use this like a boolean
-    if(valueOfEval) {
-        browser.devtools.panels.elements.createSidebarPane("Umbraco").then((sidebar) => {
-            sidebar.setPage("devtools-panel.html");
-        });
-    }
-}).catch((err) => {
-    console.error("Error: Trying to see if the inspected window contains <umb-app>", err);
-});
+checkForUmbApp(1);

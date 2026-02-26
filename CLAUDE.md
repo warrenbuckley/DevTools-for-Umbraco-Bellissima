@@ -18,6 +18,7 @@ This is a **browser extension** targeting Umbraco v14+ (Bellissima) backoffice. 
 | Build Tool | Rollup |
 | Browser APIs | webextension-polyfill |
 | Dev Tool | web-ext |
+| Testing | Playwright (Chromium, extension loaded via persistent context) |
 | Package Manager | npm |
 | Node | v22+ |
 
@@ -27,13 +28,14 @@ This is a **browser extension** targeting Umbraco v14+ (Bellissima) backoffice. 
 npm run build              # Compile TypeScript via Rollup (one-time)
 npm run watch              # Build in watch mode for development
 npm run lint               # Run web-ext linter on extension/ directory
+npm test                   # Build + run Playwright tests (requires xvfb on Linux)
 npm run start:firefox      # Launch Firefox with extension loaded + devtools open
 npm run start:chromium     # Launch Chromium with extension loaded + devtools open
 npm run package:firefox    # Package .zip for Firefox store
 npm run package:chromium   # Package .zip for Chrome store
 ```
 
-There are no automated tests configured. Manual testing is done by running the extension in a browser with `npm run start:firefox` or `npm run start:chromium`.
+Automated tests use Playwright to load the extension in Chromium and verify `<umb-app>` detection against local simulator pages. The full DevTools sidebar flow (element selection, context display) still requires manual testing with `npm run start:firefox` or `npm run start:chromium`.
 
 ## Project Structure
 
@@ -42,7 +44,8 @@ src/
 ├── background/
 │   └── background.ts              # Service worker: message relay between devtools and content script
 ├── content-script/
-│   └── content.ts                 # Content script: detects <umb-app>, listens for context events
+│   ├── content.ts                 # Content script (isolated world): detects <umb-app>, relays context data
+│   └── content-page-bridge.ts     # Page bridge (MAIN world, Chrome only): reads CustomEvent.detail
 └── devtools/
     ├── DebugContextData.interface.ts  # TypeScript interfaces for context data
     ├── devtools.registration.ts       # Registers DevTools sidebar pane when Umbraco detected
@@ -61,6 +64,13 @@ extension/                  # Built output + static assets (served to browser)
 
 scripts/
 └── copy-manifest.js        # Copies browser-specific manifest to manifest.json
+
+tests/
+├── fixtures.ts             # Playwright fixtures (persistent Chromium context + extension loading)
+├── extension.spec.ts       # Extension loading and umb-app detection tests
+└── test-pages/
+    ├── umbraco-sim.html            # Simulates SPA: adds <umb-app> dynamically after delay
+    └── umbraco-sim-immediate.html  # Baseline: <umb-app> in static HTML
 ```
 
 ## Architecture
@@ -72,22 +82,28 @@ DevTools Panel (umb-devtools component)
     ↕  browser.runtime.Port ("devtools")
 Background Service Worker (background.ts)
     ↕  browser.runtime.Port ("content-script")
-Content Script (content.ts)
+Content Script (content.ts) — isolated world
+    ↕  CustomEvent (Firefox) / window.postMessage (Chrome)
+Content Page Bridge (content-page-bridge.ts) — MAIN world (Chrome only)
     ↕  CustomEvent ("umb:debug-contexts" / "umb:debug-contexts:data")
 Page DOM (<umb-app>, <umb-debug>)
 ```
 
-**Background script** (`background.ts`): Message hub that relays data between DevTools panel and content script. Maintains connection mapping by tab ID. Updates extension icon/popup based on detection state.
+In Chrome, content scripts run in an **isolated world** where `CustomEvent.detail` from page-dispatched events is `null`. A bridge script running in the **MAIN world** reads the detail and relays it via `window.postMessage`. Firefox uses Xray wrappers so the content script can read `event.detail` directly; the bridge is not needed there and is not included in the Firefox manifest.
 
-**Content script** (`content.ts`): Injected into every page. Detects `<umb-app>` element, establishes connection to background, listens for `umb:debug-contexts:data` custom events, and relays context data.
+**Background script** (`background.ts`): Message hub that relays data between DevTools panel and content script. Distinguishes connections by port name (`"devtools"` for the panel, `"content-script"` for content scripts) and routes messages by tab ID. Cleans up stale connections on disconnect. Updates extension icon/popup based on detection state.
 
-**DevTools registration** (`devtools.registration.ts`): Runs in the DevTools context. Uses `browser.devtools.inspectedWindow.eval()` to check for `<umb-app>`, then creates a sidebar pane via `browser.devtools.panels.elements.createSidebarPane()`.
+**Content script** (`content.ts`): Injected into every page (isolated world). Detects `<umb-app>` element using an immediate check first, then falls back to a `MutationObserver` to handle SPA pages where `<umb-app>` is added dynamically after page load. Only establishes a background connection (port name `"content-script"`) when Umbraco is actually detected. Receives context data via direct `CustomEvent` listener (Firefox) and via `window.postMessage` from the page bridge (Chrome).
+
+**Content page bridge** (`content-page-bridge.ts`): Chrome-only script injected into the **MAIN world** (`"world": "MAIN"` in Chrome manifest). Listens for `umb:debug-contexts:data` custom events on `<umb-app>`, reads `event.detail` (which is only accessible in the MAIN world in Chrome), and relays it to the isolated-world content script via `window.postMessage`. Uses the same MutationObserver pattern to detect `<umb-app>`.
+
+**DevTools registration** (`devtools.registration.ts`): Runs in the DevTools context. Polls for `<umb-app>` using `browser.devtools.inspectedWindow.eval()` (up to 10 attempts at 500ms intervals), then creates a sidebar pane via `browser.devtools.panels.elements.createSidebarPane()`.
 
 **DevTools panel** (`devtools.element.ts` + `devtools.context.element.ts`): Lit web components that render in the sidebar pane. Connect to background script, listen for element selection changes, trigger context collection, and display results.
 
 ## Build System
 
-Rollup compiles 4 independent entry points from `src/` to `extension/`:
+Rollup compiles 5 independent entry points from `src/` to `extension/`:
 
 | Entry | Output |
 |-------|--------|
@@ -95,6 +111,7 @@ Rollup compiles 4 independent entry points from `src/` to `extension/`:
 | `src/devtools/devtools.element.ts` | `extension/devtools.element.js` |
 | `src/background/background.ts` | `extension/background.js` |
 | `src/content-script/content.ts` | `extension/content.js` |
+| `src/content-script/content-page-bridge.ts` | `extension/content-page-bridge.js` |
 
 Output format is ES modules with sourcemaps. The `extension/` directory is the final distributable -- static HTML/icons are committed, but `.js` and `.js.map` files are gitignored (build artifacts).
 
@@ -149,8 +166,9 @@ declare global {
 - **Private members**: Prefixed with `_` (e.g., `_backgroundPageConnection`, `_onSelectionChanged`)
 - **State management**: Local `@state()` per component, no global store
 - **Styles**: Scoped CSS via Lit's `static styles = css```, using Shadow DOM
-- **Messaging**: Port-based messaging (`browser.runtime.connect()`) for extension communication
+- **Messaging**: Port-based messaging (`browser.runtime.connect()`) with distinct port names: `"devtools"` for the panel, `"content-script"` for the content script
 - **Custom events**: Namespaced with `umb:` prefix (e.g., `umb:debug-contexts`)
+- **SPA detection**: `<umb-app>` may not exist at `document_end` (SPA bootstrap delay). Always use `MutationObserver` as a fallback for dynamic element detection, never rely on one-shot DOM checks alone
 - **Type declarations**: Always register custom elements in `HTMLElementTagNameMap`
 
 ### TypeScript Configuration
@@ -170,7 +188,7 @@ declare global {
 ## Dependencies
 
 **Production**: `lit` (only runtime dependency)
-**Dev**: `typescript`, `rollup` (+ plugins), `webextension-polyfill`, `@types/webextension-polyfill`, `web-ext`, `tslib`
+**Dev**: `typescript`, `rollup` (+ plugins), `webextension-polyfill`, `@types/webextension-polyfill`, `web-ext`, `tslib`, `@playwright/test`
 
 ## Common Tasks
 
@@ -181,9 +199,32 @@ declare global {
 
 ### Adding a new message type
 1. Define the message structure in the sending script
-2. Add a `case` handler in `background.ts` for relay logic
+2. Add a `case` handler in `background.ts` under the appropriate port handler (`"devtools"` for panel messages, `"content-script"` for content script messages)
 3. Add a listener in the receiving script (devtools or content)
 
 ### Modifying manifest permissions
 1. Update both `extension/manifest.chrome.json` and `extension/manifest.firefox.json`
 2. Run the appropriate `copy:manifest:*` script or use `start:*`/`package:*` which do it automatically
+
+## Testing
+
+Tests use Playwright to load the compiled extension into a Chromium persistent context. Extension testing requires **headed mode** (xvfb on headless Linux).
+
+```bash
+npm test   # Build + copy manifest + xvfb-run npx playwright test
+```
+
+### Test architecture
+- `tests/fixtures.ts` -- Shared Playwright fixtures that launch Chromium with the extension loaded and expose the `extensionId`
+- `tests/extension.spec.ts` -- Test cases
+- `tests/test-pages/` -- Local HTML pages that simulate Umbraco SPA behavior (dynamic `<umb-app>` creation after a delay)
+
+### Limitations
+- **Chromium only** -- Playwright extension loading doesn't support Firefox/WebKit
+- **No DevTools panel testing** -- Playwright cannot open or interact with Chrome DevTools, so the sidebar pane and element selection flow require manual testing
+- **`chrome.devtools.*` APIs unavailable** -- These are only injected when a page loads inside the actual DevTools window, not in a regular tab
+
+### Adding a new test
+1. If the test needs a custom page, add an HTML file to `tests/test-pages/`
+2. Import `{ test, expect }` from `./fixtures` (not from `@playwright/test` directly)
+3. Use `context.newPage()` to create pages within the extension-loaded browser context

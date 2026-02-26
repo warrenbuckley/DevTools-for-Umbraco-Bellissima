@@ -90,13 +90,12 @@ export class UmbDevToolsContextElement extends LitElement {
         }
 
         details {
-            border: 1px solid #ccc;
-            background: white;
+            border: 1px solid var(--umb-devtools-border);
+            background: var(--umb-devtools-surface);
             padding:5px;
-            box-shadow: 0 0 5px 0 rgba(0,0,0,0.2);
         }
 
-        details > summary { 
+        details > summary {
             cursor: pointer;
         }
 
@@ -106,7 +105,6 @@ export class UmbDevToolsContextElement extends LitElement {
 			border: none;
             background: inherit;
 			padding: 0;
-			box-shadow: none;
 		}
     `;
 }

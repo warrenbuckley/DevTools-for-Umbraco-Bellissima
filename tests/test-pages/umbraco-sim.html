@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Umbraco Bellissima Simulator</title>
+</head>
+<body>
+    <div id="root">Loading Umbraco Bellissima...</div>
+    <script>
+        // Simulate how a real SPA works:
+        // The initial HTML has NO <umb-app> element.
+        // JavaScript runs AFTER DOMContentLoaded and dynamically creates it.
+        // This is the realistic behavior that causes the race condition.
+
+        // Record timing for test verification
+        window.__timings = {
+            domContentLoadedAt: null,
+            umbAppCreatedAt: null,
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.__timings.domContentLoadedAt = performance.now();
+            window.__timings.umbAppExistsAtDCL = document.getElementsByTagName('umb-app').length > 0;
+        });
+
+        // Simulate SPA bootstrap delay - in reality this could be 100ms to several seconds
+        // depending on network speed and JS bundle size
+        const SPA_BOOT_DELAY_MS = 500;
+
+        setTimeout(() => {
+            const umbApp = document.createElement('umb-app');
+            umbApp.innerHTML = '<div>Umbraco Backoffice Loaded</div>';
+            document.body.appendChild(umbApp);
+            window.__timings.umbAppCreatedAt = performance.now();
+            window.__timings.umbAppExistsAfterCreate = document.getElementsByTagName('umb-app').length > 0;
+            document.getElementById('root').textContent = 'Umbraco Bellissima Ready';
+        }, SPA_BOOT_DELAY_MS);
+    </script>
+</body>
+</html>

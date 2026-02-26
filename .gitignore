@@ -8,3 +8,4 @@ node_modules
 extension/**/*.js
 extension/**/*.js.map
 web-ext-artifacts
+test-results

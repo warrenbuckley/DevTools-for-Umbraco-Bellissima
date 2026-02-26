@@ -4,17 +4,27 @@ import browser from "webextension-polyfill";
 import { DebugContextData } from './DebugContextData.interface';
 import './devtools.context.element';
 
-
 @customElement('umb-devtools')
 export class UmbDevToolsElement extends LitElement {
 
     @state()
-    contextData = Array<DebugContextData>();
+    contextData: DebugContextData[] = [];
 
     private _backgroundPageConnection?: browser.Runtime.Port;
 
     connectedCallback(): void {
         super.connectedCallback();
+
+        // Set the DevTools theme as a host attribute for CSS targeting
+        this._applyTheme(browser.devtools.panels.themeName);
+
+        // Firefox uses onThemeChanged event, Chrome uses setThemeChangeHandler
+        if (browser.devtools.panels.onThemeChanged) {
+            browser.devtools.panels.onThemeChanged.addListener(this._onThemeChanged);
+        } else {
+            // Chrome uses setThemeChangeHandler (Chrome 99+) instead of onThemeChanged
+            chrome?.devtools.panels.setThemeChangeHandler(this._onThemeChanged);
+        }
 
         // Connect to the background page with a given name to send/recieve messages on
         this._backgroundPageConnection = browser.runtime.connect({ name: "devtools" });
@@ -29,11 +39,12 @@ export class UmbDevToolsElement extends LitElement {
 
         // Listen to ANY messages recieved FROM the background page
         this._backgroundPageConnection.onMessage.addListener((message, _port) => {
-            switch(message.name) {
+            const msg = message as { name: string; data?: { contexts: DebugContextData[] } };
+            switch(msg.name) {
                 case "contextData":
 
                     // We HAVE data from the background page to put on the component
-                    this.contextData = message.data.contexts;
+                    this.contextData = msg.data?.contexts ?? [];
                     break;
             }
         });
@@ -44,12 +55,28 @@ export class UmbDevToolsElement extends LitElement {
 
     disconnectedCallback(): void {
         super.disconnectedCallback();
-1
+
         // Ensure we disconnect from the background page when the element is removed from the DOM
         this._backgroundPageConnection?.disconnect();
 
         // Remove our listener for when the selection of the element is changed
         browser.devtools.panels.elements.onSelectionChanged.removeListener(this._onSelectionChanged);
+
+        // Remove theme change listener
+        if (browser.devtools.panels.onThemeChanged) {
+            browser.devtools.panels.onThemeChanged.removeListener(this._onThemeChanged);
+        } else {
+            // Chrome: pass null to remove the handler
+            chrome?.devtools.panels.setThemeChangeHandler(null);
+        }
+    }
+
+    private _onThemeChanged = (themeName: string) => {
+        this._applyTheme(themeName);
+    }
+
+    private _applyTheme(themeName: string) {
+        document.documentElement.dataset.theme = themeName;
     }
 
     private _onSelectionChanged = () => {
@@ -63,15 +90,8 @@ export class UmbDevToolsElement extends LitElement {
         // and then forward it back here in the devtools element
 
         browser.devtools.inspectedWindow.eval(`
-            if (!window.selectedElement) {
-                let selectedElement = $0;
-                selectedElement.dispatchEvent(new CustomEvent("umb:debug-contexts", { bubbles: true, composed: true, cancelable: false }));
-                window.selectedElement = selectedElement;
-            } else {
-                let selectedElement = $0;
-                selectedElement.dispatchEvent(new CustomEvent("umb:debug-contexts", { bubbles: true, composed: true, cancelable: false }));
-                window.selectedElement = selectedElement;
-            }
+            var selectedElement = $0;
+            selectedElement.dispatchEvent(new CustomEvent("umb:debug-contexts", { bubbles: true, composed: true, cancelable: false }));
         `);
     }
 
@@ -114,6 +134,8 @@ export class UmbDevToolsElement extends LitElement {
 
             display: block;
             height: 100%;
+            background: var(--umb-devtools-bg);
+            color: var(--umb-devtools-color);
         }
 
         .no-selection {
@@ -127,9 +149,9 @@ export class UmbDevToolsElement extends LitElement {
             position: fixed;
             width: calc(100% - 16px);
             top:0;
-            background: #fff;
+            background: var(--umb-devtools-surface);
             padding: 10px 8px;
-            border-bottom: 1px solid #ccc;
+            border-bottom: 1px solid var(--umb-devtools-border);
             margin-bottom: 8px;
         }
 
@@ -145,6 +167,16 @@ export class UmbDevToolsElement extends LitElement {
 }
 
 declare global {
+	// Chrome-specific DevTools API not covered by webextension-polyfill.
+	// Chrome uses setThemeChangeHandler (Chrome 99+) instead of the onThemeChanged event.
+	const chrome: {
+		devtools: {
+			panels: {
+				setThemeChangeHandler(callback: ((themeName: string) => void) | null): void;
+			};
+		};
+	} | undefined;
+
 	interface HTMLElementTagNameMap {
 		'umb-devtools': UmbDevToolsElement;
 	}
